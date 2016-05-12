@@ -156,8 +156,10 @@ func (b *Booking) TimeString() string {
 		dateString = "Today from "
 	} else if start.Equal(today.AddDate(0, 0, 1)) {
 		dateString = "Tomorrow from "
+	} else if start.Before(today.AddDate(0, 0, 7)) {
+		dateString = b.Start.Format("Monday") + " from "
 	} else {
-		dateString = b.Start.Format("Sat Mar 7 from ")
+		dateString = b.Start.Format("Mon Jan 2") + " from "
 	}
 
 	return dateString + b.Start.Format("3:04") + " to " + b.End.Format("3:04pm")

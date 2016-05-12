@@ -39,13 +39,27 @@ func (bot *GastownBot) Book(channel string, username string, text string) (msg s
 // Command to show upcoming bookings
 func (bot *GastownBot) List(channel string, username string) (msg slack.Msg) {
 
-	today := time.Now()
+	y, m, d := time.Now().Date()
+	today := time.Date(y, m, d, 0, 0, 0, 0, bot.timezone)
 	tomorrow := today.AddDate(0, 0, 1)
+	week := today.AddDate(0, 0, 8)
 
 	if len(bot.bookingsList) > 0 {
 		msg.Text = "Upcoming Meeting Room Bookings:"
-		msg.Attachments = append(msg.Attachments, bot.AttachmentsForDay("#3BCBFF", today)...)
-		msg.Attachments = append(msg.Attachments, bot.AttachmentsForDay("#33FF3D", tomorrow)...)
+
+		for id, b := range bot.bookingsList {
+			title := fmt.Sprintf("Booking #%d", id+1)
+			if b.IsWithin(today, tomorrow) {
+				msg.Attachments = append(msg.Attachments, b.AsAttachment(title, "#3BCBFF"))
+			} else if b.IsWithin(today, week) {
+				msg.Attachments = append(msg.Attachments, b.AsAttachment(title, "#33FF3D"))
+			}
+		}
+
+		// msg.Attachments = append(msg.Attachments, bot.AttachmentsForDay("#3BCBFF", today)...)
+		// msg.Attachments = append(msg.Attachments, bot.AttachmentsForDay("#2BFFBA", tomorrow)...)
+		// msg.Attachments = append(msg.Attachments, bot.AttachmentsForDay("#33FF3D", week)...)
+
 		msg.Attachments = append(msg.Attachments, slack.Attachment{
 			Text: fmt.Sprintf("<%s|Full Calendar...>", GetCalendarAddress(bot.config.CalendarId)),
 		})
