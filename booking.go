@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/nlopes/slack"
-
 	"google.golang.org/api/calendar/v3"
 )
 
