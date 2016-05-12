@@ -274,7 +274,7 @@ func (bot *GastownBot) SetNextTopic() bool {
 	if bot.next != nil {
 		topic = fmt.Sprintf("*Next Booking:* %s %s", bot.next.TimeString(), bot.next.What)
 	} else {
-		topic = "No bookings today."
+		topic = "No bookings today. Use the */book* command to book the meeting room."
 	}
 	bot.Topic(topic)
 	return true
