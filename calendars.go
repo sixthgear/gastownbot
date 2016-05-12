@@ -50,6 +50,10 @@ func NewService() (service *calendar.Service, err error) {
 	return service, nil
 }
 
+func GetCalendarAddress(calendarId string) string {
+	return "https://calendar.google.com/calendar/embed?src=" + calendarId
+}
+
 // getClient uses a Context and Config to retrieve a Token
 // then generate a Client. It returns the generated Client.
 func getClient(ctx context.Context, config *oauth2.Config) (*http.Client, error) {

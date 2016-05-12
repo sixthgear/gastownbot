@@ -29,6 +29,27 @@ func (a ByStartTime) Len() int           { return len(a) }
 func (a ByStartTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByStartTime) Less(i, j int) bool { return a[i].Start.Before(a[j].Start) }
 
+func (bot *GastownBot) RebuildBookingList() {
+	// generate new bookings list, removing expired items
+	bot.bookingsList = make([]*Booking, 0)
+	for _, b := range bot.bookings {
+		if b.End.After(time.Now()) {
+			bot.bookingsList = append(bot.bookingsList, b)
+		}
+	}
+
+	// sort new list by start time
+	sort.Sort(ByStartTime(bot.bookingsList))
+
+	// check if next booking has changed
+	if len(bot.bookingsList) > 0 {
+		bot.next = bot.bookingsList[0]
+	} else {
+		bot.next = nil
+	}
+
+}
+
 // Fetch all the bookings.
 func (bot *GastownBot) SyncBookings() error {
 	// MaxResults(num).
@@ -90,32 +111,11 @@ func (bot *GastownBot) SyncBookings() error {
 			fmt.Printf("%d added bookings.\n", numAdded)
 		}
 
+		// rebuild and resort the booking list
+		defer bot.RebuildBookingList()
 		// fmt.Printf("New bookings length: %d\n", len(bookings))
-		fmt.Printf("New bookings map length: %d\n", len(bot.bookings))
+		// fmt.Printf("New bookings map length: %d\n", len(bot.bookings))
 	}
-
-	// generate new bookings list, removing expired items
-	bot.bookingsList = make([]*Booking, 0)
-	for _, b := range bot.bookings {
-		if b.End.After(time.Now()) {
-			bot.bookingsList = append(bot.bookingsList, b)
-		}
-	}
-
-	// sort new list by start time
-	sort.Sort(ByStartTime(bot.bookingsList))
-	// replace original list
-	// bot.bookings = bookings
-
-	// check if next booking has changed
-	if len(bot.bookingsList) > 0 {
-		bot.next = bot.bookingsList[0]
-	} else {
-		bot.next = nil
-	}
-
-	// set topic (if required)
-	defer bot.SetNextTopic()
 
 	// return events.NextSyncToken
 	return nil
@@ -166,10 +166,11 @@ func (b *Booking) TimeString() string {
 // Creates a slack attachment from this booking
 func (b *Booking) AsAttachment(title string, color string) (attachment slack.Attachment) {
 	return slack.Attachment{
+		Title: title,
 		Color: color,
 		Fields: []slack.AttachmentField{
-			slack.AttachmentField{Title: title, Value: b.TimeString(), Short: true},
-			slack.AttachmentField{Title: "Who/What", Value: b.What, Short: true},
+			slack.AttachmentField{Value: b.TimeString(), Short: true},
+			slack.AttachmentField{Value: b.What, Short: true},
 		},
 	}
 }

@@ -7,37 +7,53 @@ import (
 	"github.com/nlopes/slack"
 )
 
-// Command to book a meeting room
-func (bot *GastownBot) Book(channel string, username string, text string) (msg slack.Msg) {
+type SlashMsgResponse struct {
+	*slack.Msg
+	ResponseType string `json:"response_type,omitempty"`
+}
 
-	text = username + ": " + text
+// Command to book a meeting room
+func (bot *GastownBot) Book(channel string, username string, text string) (msg slack.Msg, public bool) {
+
+	if text == "" {
+		text = username
+	} else {
+		text = username + ": " + text
+	}
+
 	call := bot.gcal.Events.QuickAdd(bot.config.CalendarId, text)
 	event, err := call.Do()
 	if err != nil {
-		msg.Text = fmt.Sprintf("Could not book that!")
-		return msg
+		msg.Text = fmt.Sprintf("Couldn't book that!")
+		return msg, false
 	}
 
 	b := BookingFromEvent(bot, bot.config.CalendarId, event)
 	defer bot.SyncBookings()
 
-	msg.Text = fmt.Sprintf("Booked for %s.", b.TimeString())
-	return msg
+	msg.Text = " "
+	msg.Attachments = append(msg.Attachments, b.AsAttachment("Meeting Room Booked", "#3BCBFF"))
+	return msg, true
 }
 
 // Command to show upcoming bookings
-func (bot *GastownBot) Show(channel string, username string) (msg slack.Msg) {
+func (bot *GastownBot) List(channel string, username string) (msg slack.Msg) {
 
 	today := time.Now()
 	tomorrow := today.AddDate(0, 0, 1)
 
 	if len(bot.bookingsList) > 0 {
-		msg.Text = "Upcoming Bookings:"
+		msg.Text = "Upcoming Meeting Room Bookings:"
 		msg.Attachments = append(msg.Attachments, bot.AttachmentsForDay("#3BCBFF", today)...)
 		msg.Attachments = append(msg.Attachments, bot.AttachmentsForDay("#33FF3D", tomorrow)...)
+		msg.Attachments = append(msg.Attachments, slack.Attachment{
+			Text: fmt.Sprintf("<%s|Full Calendar...>", GetCalendarAddress(bot.config.CalendarId)),
+		})
+		msg.Attachments = append(msg.Attachments, bot.HelpAttachment())
 		return msg
 	} else {
-		msg.Text = "No bookings to show."
+		msg.Text = "No bookings today."
+		msg.Attachments = append(msg.Attachments, bot.HelpAttachment())
 		return msg
 	}
 }
@@ -62,33 +78,24 @@ func (bot *GastownBot) AttachmentsForDay(color string, t time.Time) (attachments
 
 // Print help text to channel
 func (bot *GastownBot) Help(channel string, username string) (msg slack.Msg) {
-	// TODO: print help text
-	msg.Text = "Booking command syntax:"
-	msg.Attachments = []slack.Attachment{
-		slack.Attachment{
-			// Title: "Command Syntax:",
-			Fields: []slack.AttachmentField{
-				slack.AttachmentField{
-					Value: "/book show",
-					Short: true,
-				},
-				slack.AttachmentField{
-					Value: "Show upcoming bookings",
-					Short: true,
-				},
-				slack.AttachmentField{
-					Value: "/book 1pm meeting",
-					Short: true,
-				},
-				slack.AttachmentField{
-					Value: "Book a meeting for 1pm",
-					Short: true,
-				},
-			},
-		},
-	}
-
+	msg.Text = " "
+	msg.Attachments = append(msg.Attachments, bot.HelpAttachment())
 	return msg
+}
+
+func (bot *GastownBot) HelpAttachment() slack.Attachment {
+	return slack.Attachment{
+		Title: "Usage Examples:",
+		Fields: []slack.AttachmentField{
+			slack.AttachmentField{Value: "/book", Short: true},
+			slack.AttachmentField{Value: "_Show me a list of upcoming bookings._", Short: true},
+			slack.AttachmentField{Value: "/book 1pm farts", Short: true},
+			slack.AttachmentField{Value: "_Book the meeting room for an hour at 1pm._", Short: true},
+			slack.AttachmentField{Value: "/book 2-2:30 skype call", Short: true},
+			slack.AttachmentField{Value: "_Book the meeting room for 30 minutes._", Short: true},
+		},
+		MarkdownIn: []string{"text", "fields"},
+	}
 }
 
 func (bot *GastownBot) NotUnderstood(channel string, username string) (msg slack.Msg) {

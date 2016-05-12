@@ -134,10 +134,10 @@ func (bot *GastownBot) Go() bool {
 				// command(ev.Channel, userInfo.Name, args)
 
 			case *slack.PresenceChangeEvent:
-				fmt.Printf("Presence Change: %v\n", ev)
+				// fmt.Printf("Presence Change: %v\n", ev)
 
 			case *slack.LatencyReport:
-				fmt.Printf("Current latency: %v\n", ev.Value)
+				// fmt.Printf("Current latency: %v\n", ev.Value)
 
 			case *slack.RTMError:
 				fmt.Printf("Error: %s\n", ev.Error())
@@ -174,20 +174,26 @@ func (bot *GastownBot) HandleSlash(w http.ResponseWriter, req *http.Request) {
 		t = strings.TrimSpace(strings.ToLower(t))
 	}
 
-	fmt.Println(tokens)
-
 	switch {
 	case len(tokens) == 0, tokens[0] == "":
-		response, _ = json.Marshal(bot.Help(channel, username))
+		msg := bot.List(channel, username)
+		response, _ = json.Marshal(msg)
 
 	case tokens[0] == "help":
-		response, _ = json.Marshal(bot.Help(channel, username))
+		msg := bot.Help(channel, username)
+		response, _ = json.Marshal(msg)
 
-	case tokens[0] == "show":
-		response, _ = json.Marshal(bot.Show(channel, username))
+	case tokens[0] == "list":
+		msg := bot.List(channel, username)
+		response, _ = json.Marshal(msg)
 
 	default:
-		response, _ = json.Marshal(bot.Book(channel, username, text))
+		msg, public := bot.Book(channel, username, strings.TrimSpace(text))
+		if public {
+			response, _ = json.Marshal(SlashMsgResponse{Msg: &msg, ResponseType: "in_channel"})
+		} else {
+			response, _ = json.Marshal(msg)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -204,13 +210,25 @@ func (bot *GastownBot) Tick(now time.Time) {
 		return
 	}
 
+	// remove expired events from the list
+	if bot.next != nil && bot.next.End.Before(now) {
+		bot.RebuildBookingList()
+	}
+
+	// set topic (if required)
+	bot.SetNextTopic()
+
 	// process daily tasks
 	if now.After(bot.nextDaily) {
+
 		bot.nextDaily = bot.nextDaily.Add(24 * time.Hour)
-		msg := bot.Show("", "")
-		params := bot.defaultParams
-		params.Attachments = msg.Attachments
-		bot.Broadcast("", msg.Text, &params)
+
+		if len(bot.bookingsList) > 0 {
+			msg := bot.List("", "")
+			params := bot.defaultParams
+			params.Attachments = msg.Attachments
+			bot.Broadcast("", msg.Text, &params)
+		}
 	}
 }
 
