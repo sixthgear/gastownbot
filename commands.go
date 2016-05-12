@@ -91,8 +91,10 @@ func (bot *GastownBot) HelpAttachment() slack.Attachment {
 			slack.AttachmentField{Value: "_Show me a list of upcoming bookings._", Short: true},
 			slack.AttachmentField{Value: "/book 1pm farts", Short: true},
 			slack.AttachmentField{Value: "_Book the meeting room for an hour at 1pm._", Short: true},
-			slack.AttachmentField{Value: "/book 2-2:30 skype call", Short: true},
+			slack.AttachmentField{Value: "/book 2-2:30 tomorrow skype call", Short: true},
 			slack.AttachmentField{Value: "_Book the meeting room for 30 minutes._", Short: true},
+			slack.AttachmentField{Value: "/book friday 5pm beers", Short: true},
+			slack.AttachmentField{Value: "_Book the meeting room for Friday._", Short: true},
 		},
 		MarkdownIn: []string{"text", "fields"},
 	}
